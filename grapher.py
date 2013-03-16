@@ -8,7 +8,7 @@ DEFAULT_STYLE = """
 	stroke: blue;
 	stroke-width: .3mm;
 }
-.graph line {
+.graph line, .graph path {
 	fill: none;
 	stroke: blue;
 	stroke-width: .5mm;
@@ -54,9 +54,15 @@ def updateBranches(branches):
 			x = branch.x+1
 	return x
 
+def lerp(a,b,x):
+	return a*(1-x) + b*x
+
 class SvgGraph(object):
 	
-	def __init__(self, outpath, style=None):
+	def __init__(self, outpath, style=None, linetype=3):
+		if linetype < 1 or linetype > 4:
+			raise ValueError("linetype must be between 1 and 4, got "+str(linetype))
+		
 		# Options
 		self.commit_r = "1mm"
 		self.branch_spacing = 30
@@ -65,6 +71,7 @@ class SvgGraph(object):
 		self.margin_y = 50
 		
 		# Stuff we need
+		self.line_type = linetype
 		self.svg = svgwrite.Drawing(outpath, debug=True)
 		self.svg.defs.add(self.svg.style(style or DEFAULT_STYLE))
 		
@@ -75,10 +82,33 @@ class SvgGraph(object):
 		
 	def xform(self,x,y):
 		return x*self.branch_spacing, y*self.entry_height
+	
 	def drawCommit(self, x,y):
 		self.g_graph_circles.add(self.svg.circle(self.xform(x,y),self.commit_r))
+	
 	def drawLine(self, x1,y1, x2,y2):
-		self.g_graph_lines.add(self.svg.line(self.xform(x1,y1), self.xform(x2,y2)))
+		if self.line_type == 1 or x1 == x2:
+			# Straight lines
+			self.g_graph_lines.add(self.svg.line(self.xform(x1,y1), self.xform(x2,y2)))
+		elif self.line_type == 2:
+			# Quadratic bezier paths
+			if x1 > x2:
+				cpx, cpy = x1, y2
+			else:
+				cpx, cpy = x2, y1
+			cmds = ("M", self.xform(x1,y1), "Q", self.xform(cpx,cpy), self.xform(x2,y2))
+			self.g_graph_lines.add(self.svg.path(cmds))
+		elif self.line_type == 3:
+			# Cubic bezier paths, moderate curving
+			cmds = ("M", self.xform(x1,y1), "C", self.xform(x1,lerp(y1,y2,0.7)), \
+				self.xform(x2,lerp(y1,y2,0.3)), self.xform(x2,y2))
+			self.g_graph_lines.add(self.svg.path(cmds))
+		elif self.line_type == 4:
+			# Cubic bezier paths, heavy curving
+			cmds = ("M", self.xform(x1,y1), "C", self.xform(x1,y2), \
+				self.xform(x2,y1), self.xform(x2,y2))
+			self.g_graph_lines.add(self.svg.path(cmds))
+	
 	def drawCommitText(self, x,y, commit):
 		self.g_text.add(self.svg.text(commit.msg,self.xform(x,y)))
 	
@@ -107,12 +137,10 @@ class SvgGraph(object):
 				
 				if b.next == branch.next:
 					# Merging into this commit, use this commit's X
-					x = branch.x
+					self.drawLine(b.prevx, y-1, branch.x, y)
 				else:
 					# Use branch's X
-					x = b.x
-				
-				self.drawLine(b.prevx, y-1, x, y)
+					self.drawLine(b.prevx, y-1, b.x, y)
 			
 			# Removed merged branches (and ourself)
 			insertpoint = None
