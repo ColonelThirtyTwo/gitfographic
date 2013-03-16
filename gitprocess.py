@@ -3,15 +3,16 @@ import subprocess
 from os.path import join
 
 class Commit(object):
-	def __init__(self, hsh, author, msg, parents=None, children=None):
+	def __init__(self, hsh, author, msg, time, parents=None, children=None):
 		self.hash = hsh
 		self.author = author
 		self.msg = msg
+		self.time = time
 		self.parents = [] if parents is None else parents
 		self.children = [] if children is None else children
 	
 	def __str__(self):
-		return "Commit({0},{1},{2})".format(self.hash, self.author, self.msg)
+		return "Commit({0},{1},{2},{3})".format(self.hash, self.author, self.time, self.msg)
 	__repr__ = __str__
 	
 	def __eq__(self, other):
@@ -23,7 +24,7 @@ def getLog(d=None):
 	args = ["git"]
 	if d:
 		args.append("--git-dir="+join(d,".git"))
-	args = args + ["log", "--format=format:%H:%an:%P:%s"]
+	args = args + ["log", "--format=format:%H:%an:%at:%P:%s"]
 	
 	return subprocess.check_output(args)
 
@@ -34,11 +35,12 @@ def parseLog(out):
 	lines = out.splitlines()
 	lines.reverse()
 	for line in lines:
-		hsh, author, parents, msg = line.split(":", 3)
+		hsh, author, time, parents, msg = line.split(":", 4)
 		
-		commit = Commit(hsh, author, msg)
-		hash2commit[hsh] = commit
+		time = int(time)
 		parents = parents.split()
+		commit = Commit(hsh, author, msg, time)
+		hash2commit[hsh] = commit
 		
 		for p_hash in parents:
 			assert p_hash in hash2commit
