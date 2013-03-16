@@ -40,11 +40,10 @@ class SvgGraph(object):
 		self.svg.add(self.g_text)
 
 	def drawCommit(self, x,y):
-		e = self.svg.circle((x,y),self.commit_r)
-		self.g_graph.add(e)
+		self.g_graph.add(self.svg.circle((x,y),self.commit_r))
 
 	def drawLine(self, x1,y1, x2,y2):
-		pass
+		self.g_graph.add(self.svg.line((x1,y1), (x2,y2)))
 	
 	def drawCommitText(self, commit):
 		pass
