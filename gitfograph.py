@@ -1,5 +1,4 @@
 
-from __future__ import print_function
 import gitprocess
 import grapher
 import argparse
