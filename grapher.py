@@ -167,10 +167,10 @@ class SvgGraph(object):
 			
 			y += 1
 		
-		msg_margin = maxx*self.branch_spacing+20
+		msg_margin = maxx*self.branch_spacing + 20
 		self.g_graph.translate(self.margin_x, self.margin_y)
-		self.g_text.translate(self.margin_x+msg_margin, self.margin_y)
-		self.svg["width"] = self.margin_x+msg_margin + maxmsglen*10 + self.margin_x*2
+		self.g_text.translate(self.margin_x + msg_margin, self.margin_y)
+		self.svg["width"] = self.margin_x + msg_margin*2 + maxmsglen*10 + self.margin_x*2
 		self.svg["height"] = (y-1) * self.entry_height + 2*self.margin_y
 		
 	
