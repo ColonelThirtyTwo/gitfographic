@@ -113,9 +113,8 @@ class SvgGraph(object):
 		self.g_text.add(self.svg.text(commit.msg,self.xform(x,y)))
 	
 	def create(self, commits):
-		self.g_graph.translate(self.margin_x, self.margin_y)
-		self.g_text.translate(self.margin_x+100, self.margin_y)
 		maxx = 0
+		maxmsglen = 0
 		
 		commit_points = {}
 		branches = [Branch(None,commits[0],0,0)]
@@ -160,10 +159,14 @@ class SvgGraph(object):
 			
 			# Fan branches outwards
 			maxx = max(maxx, updateBranches(branches)-1)
+			maxmsglen = max(maxmsglen, len(branch.next.msg))
 			
 			y += 1
 		
-		self.svg["width"] = "100%"
+		msg_margin = maxx*self.branch_spacing+20
+		self.g_graph.translate(self.margin_x, self.margin_y)
+		self.g_text.translate(self.margin_x+msg_margin, self.margin_y)
+		self.svg["width"] = self.margin_x+msg_margin + maxmsglen*10 + self.margin_x*2
 		self.svg["height"] = len(commits) * self.entry_height + 2*self.margin_y
 		
 	
