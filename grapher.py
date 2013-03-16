@@ -33,17 +33,16 @@ class SvgGraph(object):
 		self.svg = svgwrite.Drawing(outpath, debug=True)
 		self.svg.defs.add(self.svg.style(style or DEFAULT_STYLE))
 		
-		self.g_graph = self.svg.g(class_="graph")
-		self.svg.add(self.g_graph)
-		
-		self.g_text = self.svg.g(class_="messages")
-		self.svg.add(self.g_text)
+		self.g_graph = self.svg.add(self.svg.g(class_="graph"))
+		self.g_graph_lines = self.g_graph.add(self.svg.g(class_="lines"))
+		self.g_graph_circles = self.g_graph.add(self.svg.g(class_="circles"))
+		self.g_text = self.svg.add(self.svg.g(class_="messages"))
 
 	def drawCommit(self, x,y):
-		self.g_graph.add(self.svg.circle((x,y),self.commit_r))
+		self.g_graph_circles.add(self.svg.circle((x,y),self.commit_r))
 
 	def drawLine(self, x1,y1, x2,y2):
-		self.g_graph.add(self.svg.line((x1,y1), (x2,y2)))
+		self.g_graph_lines.add(self.svg.line((x1,y1), (x2,y2)))
 	
 	def drawCommitText(self, commit):
 		pass
