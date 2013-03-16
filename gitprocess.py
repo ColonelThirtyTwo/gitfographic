@@ -1,6 +1,7 @@
 
 import subprocess
 from os.path import join
+import logging
 
 class Commit(object):
 	__slots__ = ("hash", "author", "msg", "time", "parents", "children")
@@ -32,9 +33,9 @@ def getLog(d=None, largs=tuple()):
 	
 	return subprocess.check_output(args).decode("utf8", "replace")
 
-def parseLog(log, quiet):
+def parseLog(log):
 	hash2commit = {}
-	commits = []
+	roots = []
 	
 	lines = log.splitlines()
 	lines.reverse()
@@ -48,13 +49,15 @@ def parseLog(log, quiet):
 		
 		for p_hash in parents:
 			if p_hash not in hash2commit:
-				print("Warning: Couldn't find parent {0} for commit {1}; ignoring parent".format(p_hash, hsh))
+				logging.debug("Couldn't find parent %s for commit %s; ignoring parent", p_hash, hsh)
 				continue
 			p = hash2commit[p_hash]
 			
 			commit.parents.append(p)
 			p.children.append(commit)
 		
-		commits.append(commit)
+		if len(commit.parents) == 0:
+			logging.debug("Found root commit: %s", hsh)
+			roots.append(commit)
 	
-	return commits
+	return roots
