@@ -24,9 +24,9 @@ def getLog(d=None):
 	args = ["git"]
 	if d:
 		args.append("--git-dir="+join(d,".git"))
-	args = args + ["log", "--format=format:%H:%an:%at:%P:%s"]
+	args = args + ["log", "--format=format:%H:%an:%at:%P:%s", "--topo-order"]
 	
-	return subprocess.check_output(args)
+	return subprocess.check_output(args).decode("utf8", "replace")
 
 def parseLog(out):
 	hash2commit = {}
@@ -43,7 +43,7 @@ def parseLog(out):
 		hash2commit[hsh] = commit
 		
 		for p_hash in parents:
-			assert p_hash in hash2commit
+			assert p_hash in hash2commit, "Unknown parent: "+p_hash
 			p = hash2commit[p_hash]
 			
 			commit.parents.append(p)

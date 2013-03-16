@@ -10,7 +10,7 @@ SVG file.
 Requirements
 ------------
 
- * Python (tested with 2.7, but 3.* should work as well)
+ * Python 3.3
  * [svgwrite](https://pypi.python.org/pypi/svgwrite)
 
 Usage
