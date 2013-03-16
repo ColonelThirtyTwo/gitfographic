@@ -3,16 +3,21 @@ import subprocess
 from os.path import join
 
 class Commit(object):
-	def __init__(self, hsh, author, msg, parents=[], children=[]):
+	def __init__(self, hsh, author, msg, parents=None, children=None):
 		self.hash = hsh
 		self.author = author
 		self.msg = msg
-		self.parents = parents
-		self.children = children
+		self.parents = [] if parents is None else parents
+		self.children = [] if children is None else children
 	
 	def __str__(self):
 		return "Commit({0},{1},{2})".format(self.hash, self.author, self.msg)
 	__repr__ = __str__
+	
+	def __eq__(self, other):
+		return self.hash == other.hash
+	def __hash__(self):
+		return hash(self.hash)
 
 def getLog(d=None):
 	args = ["git"]
@@ -33,11 +38,11 @@ def parseLog(out):
 		
 		commit = Commit(hsh, author, msg)
 		hash2commit[hsh] = commit
-		
 		parents = parents.split()
-		for i in range(0,len(parents)):
-			assert parents[i] in hash2commit
-			p = hash2commit[parents[i]]
+		
+		for p_hash in parents:
+			assert p_hash in hash2commit
+			p = hash2commit[p_hash]
 			
 			commit.parents.append(p)
 			p.children.append(commit)
