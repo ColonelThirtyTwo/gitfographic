@@ -26,6 +26,8 @@ class SvgGraph(object):
 		self.commit_r = "1mm"
 		self.branch_spacing = 30
 		self.entry_height = 25
+		self.margin_x = 50
+		self.margin_y = 50
 		
 		# Stuff we need
 		self.svg = svgwrite.Drawing(outpath, debug=True)
@@ -48,6 +50,8 @@ class SvgGraph(object):
 		pass
 
 	def create(self, commits):
+		self.g_graph.translate(self.margin_x, self.margin_y)
+		
 		commit_points = {}
 		branches = []
 		for i, commit in enumerate(commits):
@@ -75,6 +79,10 @@ class SvgGraph(object):
 			for j in range(len(branches)-1, 0, -1):
 				if not branches[j].children:
 					branches.pop(j)
+		
+		self.svg["width"] = "100%"
+		self.svg["height"] = len(commits) * self.entry_height + 2*self.margin_y
+		
 	
 	def save(self):
 		self.svg.save()
