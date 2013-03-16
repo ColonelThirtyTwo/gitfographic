@@ -22,6 +22,8 @@ DEFAULT_STYLE = """
 """
 
 class Branch(object):
+	__slots__ = ("prev", "next", "x", "prevx")
+	
 	def __init__(self, prev, next, x, prevx):
 		self.prev = prev
 		self.next = next

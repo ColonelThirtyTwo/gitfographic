@@ -3,6 +3,8 @@ import subprocess
 from os.path import join
 
 class Commit(object):
+	__slots__ = ("hash", "author", "msg", "time", "parents", "children")
+	
 	def __init__(self, hsh, author, msg, time, parents=None, children=None):
 		self.hash = hsh
 		self.author = author
@@ -20,19 +22,21 @@ class Commit(object):
 	def __hash__(self):
 		return hash(self.hash)
 
-def getLog(d=None):
+def getLog(d=None, largs=tuple()):
 	args = ["git"]
 	if d:
 		args.append("--git-dir="+join(d,".git"))
-	args = args + ["log", "--format=format:%H:%an:%at:%P:%s", "--topo-order"]
+	args.append("log")
+	args.extend(largs)
+	args.extend(("--format=format:%H:%an:%at:%P:%s", "--topo-order"))
 	
 	return subprocess.check_output(args).decode("utf8", "replace")
 
-def parseLog(out):
+def parseLog(log, quiet):
 	hash2commit = {}
 	commits = []
 	
-	lines = out.splitlines()
+	lines = log.splitlines()
 	lines.reverse()
 	for line in lines:
 		hsh, author, time, parents, msg = line.split(":", 4)
@@ -43,7 +47,9 @@ def parseLog(out):
 		hash2commit[hsh] = commit
 		
 		for p_hash in parents:
-			assert p_hash in hash2commit, "Unknown parent: "+p_hash
+			if p_hash not in hash2commit:
+				print("Warning: Couldn't find parent {0} for commit {1}; ignoring parent".format(p_hash, hsh))
+				continue
 			p = hash2commit[p_hash]
 			
 			commit.parents.append(p)
