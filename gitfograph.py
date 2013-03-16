@@ -20,11 +20,11 @@ if __name__ == "__main__":
 	logging.basicConfig(level=args.level, format="%(message)s")
 	
 	logging.info("Parsing commits from log")
-	commits = gitprocess.parseLog(gitprocess.getLog(args.repo, args.log))
+	roots = gitprocess.parseLog(gitprocess.getLog(args.repo, args.log))
 	graph = grapher.SvgGraph(args.outfile, None, args.linestyle)
 	
 	logging.info("Creating graph")
-	graph.create(commits)
+	graph.create(roots)
 	
 	logging.info("Saving graph to disk")
 	graph.save()

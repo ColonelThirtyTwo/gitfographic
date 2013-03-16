@@ -35,7 +35,7 @@ def getLog(d=None, largs=tuple()):
 
 def parseLog(log):
 	hash2commit = {}
-	commits = []
+	roots = []
 	
 	lines = log.splitlines()
 	lines.reverse()
@@ -56,6 +56,8 @@ def parseLog(log):
 			commit.parents.append(p)
 			p.children.append(commit)
 		
-		commits.append(commit)
+		if len(commit.parents) == 0:
+			logging.debug("Found root commit: %s", hsh)
+			roots.append(commit)
 	
-	return commits
+	return roots
