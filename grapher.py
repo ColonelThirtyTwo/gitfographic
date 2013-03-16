@@ -13,9 +13,10 @@ DEFAULT_STYLE = """
 	stroke-width: .5mm;
 }
 .messages text {
-	font: monospace;
-	color: black;
+	font-family: monospace;
 	font-size: 12pt;
+	color: black;
+	dominant-baseline: central;
 }
 """
 
@@ -44,11 +45,12 @@ class SvgGraph(object):
 	def drawLine(self, x1,y1, x2,y2):
 		self.g_graph_lines.add(self.svg.line((x1,y1), (x2,y2)))
 	
-	def drawCommitText(self, commit):
-		pass
+	def drawCommitText(self, commit, x,y):
+		self.g_text.add(self.svg.text(commit.msg, insert=(x,y)))
 
 	def create(self, commits):
 		self.g_graph.translate(self.margin_x, self.margin_y)
+		self.g_text.translate(self.margin_x+100, self.margin_y)
 		
 		commit_points = {}
 		branches = []
@@ -72,6 +74,8 @@ class SvgGraph(object):
 			for p in commit.parents:
 				x2,y2 = commit_points[p]
 				self.drawLine(x,y, x2,y2)
+			
+			self.drawCommitText(commit, 0, y)
 			
 			# Remove merged branches
 			if len(commit.parents) > 1:
