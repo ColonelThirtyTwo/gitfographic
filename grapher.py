@@ -74,10 +74,12 @@ class SvgGraph(object):
 				x2,y2 = commit_points[p]
 				self.drawLine(x,y, x2,y2)
 			
-			# Remove fully merged branches
-			for j in range(len(branches)-1, 0, -1):
-				if not branches[j].children:
-					branches.pop(j)
+			# Remove merged branches
+			if len(commit.parents) > 1:
+				for j in range(len(branches)-1, branch, -1):
+					p = branches[j]
+					if p in commit.parents and len(p.children) == 1:
+						branches.pop(j)
 		
 		self.svg["width"] = "100%"
 		self.svg["height"] = len(commits) * self.entry_height + 2*self.margin_y
