@@ -127,7 +127,7 @@ class SvgGraph(object):
 		
 		# Stuff we need
 		self.curr_style = 0
-		self.svg = svgwrite.Drawing(outpath, debug=True)
+		self.svg = svgwrite.Drawing(outpath, debug=False)
 		self.svg.defs.add(self.svg.style(style or DEFAULT_STYLE))
 		
 		self.g_graph = self.svg.add(self.svg.g(class_="graph"))
