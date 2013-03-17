@@ -38,62 +38,71 @@ class Branch(object):
 	def __init__(self, graph, style, active, next, x,y):
 		self.graph = graph
 		
-		self.path = graph.g_graph_lines.add(graph.svg.path(class_=style2class(style)))
-		if active:
-			self.path.push(("M",self.graph.xform(x,y)))
-		
 		self.x = x
-		self.nextcolumn = x
+		self.oldx = x
+		self.active = False
 		self.style = style
-		self.active = active
 		self.next = next
-	
-	def shift(self, x, y):
-		if self.x == x:
-			return
 		
+		if active:
+			self.activate(y)
+	
+	def activate(self, y):
 		if self.active:
-			self.path.push(("V",self.graph.xform(0,y-1)[1]))
+			return
+		self.path = self.graph.g_graph_lines.add(self.graph.svg.path(class_=style2class(self.style)))
+		self.push("M",self.graph.xform(self.x,y))
+		self.active = True
+	
+	def push(self, *args):
+		self.path.push(args)
+	
+	def updateX(self, x):
+		self.x = x
+	
+	def drawstep(self, y):
+		if not self.active:
+			return
+		if self.oldx != self.x:
+			x1,y1 = self.oldx, y-1
+			x2,y2 = self.x, y
 			
 			if self.graph.line_type == 1:
 				# Straight lines
-				self.path.push(("L",self.graph.xform(x,y)))
+				self.push(y, "L",self.graph.xform(x2,y2))
 			elif self.graph.line_type == 2:
 				# Quadratic bezier paths
 				if x1 > x2:
-					cpx, cpy = self.x, y
+					cpx, cpy = x1, y2
 				else:
-					cpx, cpy = x, y-1
-				self.path.push(("Q", self.graph.xform(cpx, cpy), self.graph.xform(x, y)))
+					cpx, cpy = x2, y1
+				self.push("Q", self.graph.xform(cpx, cpy), self.graph.xform(x2, y2))
 			elif self.graph.line_type == 3:
 				# Cubic bezier paths, moderate curving
-				self.path.push(("C", self.graph.xform(self.x,y-0.3), self.graph.xform(x,y-0.7), self.graph.xform(x,y)))
+				self.push("C", self.graph.xform(x1,y2-0.3), self.graph.xform(x2,y1+0.3), self.graph.xform(x2,y2))
 			elif self.graph.line_type == 4:
 				# Cubic bezier paths, heavy curving
-				self.path.push(("C", self.graph.xform(self.x,y), self.graph.xform(x,y-1), self.graph.xform(x,y)))
-		
-		self.x = x
+				self.push("C", self.graph.xform(x1,y2), self.graph.xform(x2,y1), self.graph.xform(x2,y2))
+			self.oldx = x2
+		else:
+			self.push("V",self.graph.xform(-1,y)[1])
 	
-	def updateNext(self, next, x, y):
-		if not self.active:
-			self.path.push(("M",self.graph.xform(x,y)))
-			self.active = True
+	def updateNext(self, next, y):
+		self.activate(y)
 		self.next = next
 	
-	def split(self, nexts, x, y):
+	def split(self, nexts, y):
 		l = []
 		for c in nexts:
 			if not l:
 				style = self.style
 			else:
 				style = self.graph.nextBranchStyle()
-			l.append(Branch(self.graph, style, self.next, c, x, y))
-		self.end(y)
+			l.append(Branch(self.graph, style, self.next, c, self.x, y))
 		return l
 	
-	def end(self,y):
-		assert self.active
-		self.path.push(("V",self.graph.xform(0,y)[1]))
+	def end(self, y):
+		pass
 	
 	@staticmethod
 	def key_time(x):
@@ -155,8 +164,8 @@ class SvgGraph(object):
 		commit_points = {}
 		branches = []
 		for x, root in enumerate(roots):
-			#branches.append(Branch(self.nextBranchStyle(),root.hasUnknownParents,root,x,x))
-			branches.append(Branch(self,self.nextBranchStyle(),root.hasUnknownParents,root,x,0))
+			#branches.append(Branch(self,self.nextBranchStyle(),root.hasUnknownParents,root,x,0))
+			branches.append(Branch(self,self.nextBranchStyle(),True,root,x,0))
 		
 		while branches:
 			branch = min(branches, key=Branch.key_time)
@@ -165,18 +174,12 @@ class SvgGraph(object):
 			self.drawCommit(branch.x, y, branch.style)
 			self.drawCommitText(0, y, branch.next)
 			
-			newbranches = branches[:]
-			
 			# Draw connecting lines
 			for b in branches:
 				if b.next == branch.next:
 					## Merging into this commit, use this commit's X
-					#self.drawLine(b.prevx, y-1, branch.x, y, b.style)
-					b.shift(branch.x, y)
-				else:
-					## Use branch's X
-					#self.drawLine(b.prevx, y-1, b.x, y, b.style)
-					b.shift(b.nextcolumn, y)
+					b.updateX(branch.x)
+				b.drawstep(y)
 			
 			# Removed merged branches (and ourself)
 			insertpoint = None
@@ -185,38 +188,27 @@ class SvgGraph(object):
 				b = branches[i]
 				if b.next == branch.next:
 					branches.pop(i)
+					b.end(y)
 					if insertpoint is None:
 						insertpoint = i
-					if b != branch:
-						b.end(y)
 				else:
 					i += 1
 			assert insertpoint is not None
 			
 			# Create new branches for children, or re-add ourself
 			if len(branch.next.children) > 1:
-				branches[insertpoint:insertpoint] = branch.split(branch.next.children,branch.x,y)
+				branches[insertpoint:insertpoint] = branch.split(branch.next.children,y)
 			elif branch.next.children:
 				branches.insert(insertpoint, branch)
-				branch.updateNext(branch.next.children[0], branch.x, y)
+				branch.updateNext(branch.next.children[0], y)
 			else:
 				branch.end(y)
-			
-			#first = True
-			#for child in branch.next.children:
-			#	if first:
-			#		style = branch.style
-			#		first = False
-			#	else:
-			#		style = self.nextBranchStyle()
-			#	branches.insert(insertpoint, Branch(style, branch.next, child, branch.x, branch.prevx))
-			#	insertpoint = insertpoint + 1
 			
 			# Fan branches outwards
 			x = 0
 			for branch in branches:
 				if branch.x <= x:
-					branch.nextcolumn = x
+					branch.updateX(x)
 					x += 1
 				elif branch.x > x:
 					x = branch.x+1
