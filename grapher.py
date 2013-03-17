@@ -28,45 +28,76 @@ DEFAULT_BRANCH_STYLE = """
 }}
 """
 
-class Branch(object):
-	def __init__(self, style, prev, next, x, prevx):
-		self.style = style
-		self.prev = prev
-		self.next = next
-		self.x = x
-		self.prevx = prevx
-	
-	def setPrev(self):
-		assert self.x >= self.prevx
-		self.prevx = self.x
-	
-	@staticmethod
-	def key_time(x):
-		return x.next.time
-	@staticmethod
-	def key_x(x):
-		return x.x
-	
-	def __str__(self):
-		return "Branch({0},{1},{2},{3})".format(self.prev.hash[:5], self.next.hash[:5], self.x, self.prevx)
-	__repr__ = __str__
-
-def updateBranches(branches):
-	x = -1
-	for branch in branches:
-		branch.setPrev()
-		if branch.x <= x:
-			branch.x = x
-			x += 1
-		elif branch.x > x:
-			x = branch.x+1
-	return x
-
 def lerp(a,b,x):
 	return a*(1-x) + b*x
 
 def style2class(n):
 	return "branch{0}".format(n)
+
+class Branch(object):
+	def __init__(self, graph, style, active, next, x,y):
+		self.graph = graph
+		
+		self.path = graph.g_graph_lines.add(graph.svg.path(class_=style2class(style)))
+		if active:
+			self.path.push(("M",self.graph.xform(x,y)))
+		
+		self.x = x
+		self.nextcolumn = x
+		self.style = style
+		self.active = active
+		self.next = next
+	
+	def shift(self, x, y):
+		if self.x == x:
+			return
+		
+		if self.active:
+			self.path.push(("V",self.graph.xform(0,y-1)[1]))
+			
+			if self.graph.line_type == 1:
+				# Straight lines
+				self.path.push(("L",self.graph.xform(x,y)))
+			elif self.graph.line_type == 2:
+				# Quadratic bezier paths
+				if x1 > x2:
+					cpx, cpy = self.x, y
+				else:
+					cpx, cpy = x, y-1
+				self.path.push(("Q", self.graph.xform(cpx, cpy), self.graph.xform(x, y)))
+			elif self.graph.line_type == 3:
+				# Cubic bezier paths, moderate curving
+				self.path.push(("C", self.graph.xform(self.x,y-0.3), self.graph.xform(x,y-0.7), self.graph.xform(x,y)))
+			elif self.graph.line_type == 4:
+				# Cubic bezier paths, heavy curving
+				self.path.push(("C", self.graph.xform(self.x,y), self.graph.xform(x,y-1), self.graph.xform(x,y)))
+		
+		self.x = x
+	
+	def updateNext(self, next, x, y):
+		if not self.active:
+			self.path.push(("M",self.graph.xform(x,y)))
+			self.active = True
+		self.next = next
+	
+	def split(self, nexts, x, y):
+		l = []
+		for c in nexts:
+			if not l:
+				style = self.style
+			else:
+				style = self.graph.nextBranchStyle()
+			l.append(Branch(self.graph, style, self.next, c, x, y))
+		self.end(y)
+		return l
+	
+	def end(self,y):
+		assert self.active
+		self.path.push(("V",self.graph.xform(0,y)[1]))
+	
+	@staticmethod
+	def key_time(x):
+		return x.next.time
 
 class SvgGraph(object):
 	
@@ -100,29 +131,6 @@ class SvgGraph(object):
 	def drawCommit(self, x,y, style):
 		self.g_graph_circles.add(self.svg.circle(self.xform(x,y),self.commit_r, class_=style2class(style)))
 	
-	def drawLine(self, x1,y1, x2,y2, style):
-		if self.line_type == 1 or x1 == x2:
-			# Straight lines
-			self.g_graph_lines.add(self.svg.line(self.xform(x1,y1), self.xform(x2,y2), class_=style2class(style)))
-		elif self.line_type == 2:
-			# Quadratic bezier paths
-			if x1 > x2:
-				cpx, cpy = x1, y2
-			else:
-				cpx, cpy = x2, y1
-			cmds = ("M", self.xform(x1,y1), "Q", self.xform(cpx,cpy), self.xform(x2,y2))
-			self.g_graph_lines.add(self.svg.path(cmds, class_=style2class(style)))
-		elif self.line_type == 3:
-			# Cubic bezier paths, moderate curving
-			cmds = ("M", self.xform(x1,y1), "C", self.xform(x1,lerp(y1,y2,0.7)), \
-				self.xform(x2,lerp(y1,y2,0.3)), self.xform(x2,y2))
-			self.g_graph_lines.add(self.svg.path(cmds, class_=style2class(style)))
-		elif self.line_type == 4:
-			# Cubic bezier paths, heavy curving
-			cmds = ("M", self.xform(x1,y1), "C", self.xform(x1,y2), \
-				self.xform(x2,y1), self.xform(x2,y2))
-			self.g_graph_lines.add(self.svg.path(cmds, class_=style2class(style)))
-	
 	def drawCommitText(self, x,y, commit):
 		self.g_text.add(self.svg.text(commit.msg,self.xform(x,y)))
 	
@@ -143,11 +151,12 @@ class SvgGraph(object):
 			self.svg.defs.add(self.svg.style(self.branch_style.format(i, color)))
 		
 		# Set up branches
-		y = 0
+		y = 1
 		commit_points = {}
 		branches = []
 		for x, root in enumerate(roots):
-			branches.append(Branch(self.nextBranchStyle(),root.hasUnknownParents,root,x,x))
+			#branches.append(Branch(self.nextBranchStyle(),root.hasUnknownParents,root,x,x))
+			branches.append(Branch(self,self.nextBranchStyle(),root.hasUnknownParents,root,x,0))
 		
 		while branches:
 			branch = min(branches, key=Branch.key_time)
@@ -160,41 +169,58 @@ class SvgGraph(object):
 			
 			# Draw connecting lines
 			for b in branches:
-				if not b.prev:
-					continue
-				
 				if b.next == branch.next:
-					# Merging into this commit, use this commit's X
-					self.drawLine(b.prevx, y-1, branch.x, y, b.style)
+					## Merging into this commit, use this commit's X
+					#self.drawLine(b.prevx, y-1, branch.x, y, b.style)
+					b.shift(branch.x, y)
 				else:
-					# Use branch's X
-					self.drawLine(b.prevx, y-1, b.x, y, b.style)
+					## Use branch's X
+					#self.drawLine(b.prevx, y-1, b.x, y, b.style)
+					b.shift(b.nextcolumn, y)
 			
 			# Removed merged branches (and ourself)
 			insertpoint = None
 			i = 0
 			while i < len(branches):
-				if branches[i].next == branch.next:
+				b = branches[i]
+				if b.next == branch.next:
 					branches.pop(i)
 					if insertpoint is None:
 						insertpoint = i
+					if b != branch:
+						b.end(y)
 				else:
 					i += 1
 			assert insertpoint is not None
 			
-			# Create new branches for children
-			first = True
-			for child in branch.next.children:
-				if first:
-					style = branch.style
-					first = False
-				else:
-					style = self.nextBranchStyle()
-				branches.insert(insertpoint, Branch(style, branch.next, child, branch.x, branch.prevx))
-				insertpoint = insertpoint + 1
+			# Create new branches for children, or re-add ourself
+			if len(branch.next.children) > 1:
+				branches[insertpoint:insertpoint] = branch.split(branch.next.children,branch.x,y)
+			elif branch.next.children:
+				branches.insert(insertpoint, branch)
+				branch.updateNext(branch.next.children[0], branch.x, y)
+			else:
+				branch.end(y)
+			
+			#first = True
+			#for child in branch.next.children:
+			#	if first:
+			#		style = branch.style
+			#		first = False
+			#	else:
+			#		style = self.nextBranchStyle()
+			#	branches.insert(insertpoint, Branch(style, branch.next, child, branch.x, branch.prevx))
+			#	insertpoint = insertpoint + 1
 			
 			# Fan branches outwards
-			maxx = max(maxx, updateBranches(branches)-1)
+			x = 0
+			for branch in branches:
+				if branch.x <= x:
+					branch.nextcolumn = x
+					x += 1
+				elif branch.x > x:
+					x = branch.x+1
+			maxx = max(maxx, x)
 			maxmsglen = max(maxmsglen, len(branch.next.msg))
 			
 			y += 1
