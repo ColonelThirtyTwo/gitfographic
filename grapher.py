@@ -6,12 +6,10 @@ from colorsys import hsv_to_rgb
 DEFAULT_STYLE = """
 .graph circle {
 	fill: white;
-	/*stroke: blue;*/
 	stroke-width: .3mm;
 }
 .graph line, .graph path {
 	fill: none;
-	/*stroke: blue;*/
 	stroke-width: .5mm;
 }
 .messages text {
@@ -63,6 +61,7 @@ class Branch(object):
 	def drawstep(self, y):
 		if not self.active:
 			return
+		
 		if self.oldx != self.x:
 			self.push("V",self.graph.xform(-1,y-1)[1])
 			
@@ -85,10 +84,8 @@ class Branch(object):
 			elif self.graph.line_type == 4:
 				# Cubic bezier paths, heavy curving
 				self.push("C", self.graph.xform(x1,y2), self.graph.xform(x2,y1), self.graph.xform(x2,y2))
+			
 			self.oldx = x2
-		else:
-			#self.push("V",self.graph.xform(-1,y)[1])
-			pass
 	
 	def updateNext(self, next, y):
 		self.activate(y)
@@ -153,13 +150,14 @@ class SvgGraph(object):
 		return n
 	
 	def create(self, roots):
+		# Keep some values to help determine the width of the SVG
 		maxx = 0
 		maxmsglen = 0
 		
 		# Generate branch styles
 		start_hue = random.random()
 		for i in range(self.max_styles):
-			color = hsv_to_rgb(start_hue+i/self.max_styles, 1, 0.8)
+			color = hsv_to_rgb((start_hue+float(i)/self.max_styles)%1, 1, 0.8)
 			color = int(color[0]*255), int(color[1]*255), int(color[2]*255)
 			self.svg.defs.add(self.svg.style(self.branch_style.format(i, color)))
 		
@@ -172,42 +170,43 @@ class SvgGraph(object):
 			branches.append(Branch(self,self.nextBranchStyle(),True,root,x,0))
 		
 		while branches:
+			# Get the next branch, by time of commit
 			branch = min(branches, key=Branch.key_time)
 			
 			# Draw commit
 			self.drawCommit(branch.x, y, branch.style)
 			self.drawCommitText(0, y, branch.next)
 			
-			# Draw connecting lines
-			for b in branches:
-				if b.next == branch.next:
-					## Merging into this commit, use this commit's X
-					b.updateX(branch.x)
-				b.drawstep(y)
-			
-			# Removed merged branches (and ourself)
+			# Update, draw, and remove merged branches (including current branch)
 			insertpoint = None
 			i = 0
 			while i < len(branches):
 				b = branches[i]
 				if b.next == branch.next:
-					branches.pop(i)
-					if b is not branch:
-						b.end(y)
+					b.updateX(branch.x) # Merge the branch
+					branches.pop(i)     # Remove the merged branch
+					
+					if b is not branch: # End branches with no possibility of continuing
+						b.end(y)        # The current branch may continue, see the next section of code
+					
 					if insertpoint is None:
 						insertpoint = i
 				else:
 					i += 1
+				b.drawstep(y)
 			assert insertpoint is not None
 			
-			# Create new branches for children, or re-add ourself
+			# Create new branches for children, or re-add current branch
 			if len(branch.next.children) > 1:
+				# Split current branch into sub-branches for each of the children
 				branches[insertpoint:insertpoint] = branch.split(branch.next.children,y)
 				branch.end(y)
 			elif branch.next.children:
+				# Only one child, just continue the existing branch
 				branches.insert(insertpoint, branch)
 				branch.updateNext(branch.next.children[0], y)
 			else:
+				# No more children, stop the branch
 				branch.end(y)
 			
 			# Fan branches outwards
@@ -218,11 +217,15 @@ class SvgGraph(object):
 					x += 1
 				elif b.x > x:
 					x = b.x+1
+			
+			# Update maximum values
 			maxx = max(maxx, x)
 			maxmsglen = max(maxmsglen, len(branch.next.msg))
 			
+			# Increment our y position
 			y += 1
 		
+		# Align the text and set SVG widths
 		msg_margin = maxx*self.branch_spacing + 20
 		self.g_graph.translate(self.margin_x, self.margin_y)
 		self.g_text.translate(self.margin_x + msg_margin, self.margin_y)
