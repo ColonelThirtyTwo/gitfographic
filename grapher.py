@@ -22,8 +22,6 @@ DEFAULT_STYLE = """
 """
 
 class Branch(object):
-	__slots__ = ("prev", "next", "x", "prevx")
-	
 	def __init__(self, prev, next, x, prevx):
 		self.prev = prev
 		self.next = next
@@ -122,7 +120,7 @@ class SvgGraph(object):
 		commit_points = {}
 		branches = []
 		for x, root in enumerate(roots):
-			branches.append(Branch(None,root,x,0))
+			branches.append(Branch(root.hasUnknownParents,root,x,x))
 		
 		while branches:
 			branch = min(branches, key=Branch.key_time)

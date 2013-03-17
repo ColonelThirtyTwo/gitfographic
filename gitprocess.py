@@ -4,12 +4,11 @@ from os.path import join
 import logging
 
 class Commit(object):
-	__slots__ = ("hash", "msg", "time", "parents", "children")
-	
 	def __init__(self, hsh, msg, time, parents=None, children=None):
 		self.hash = hsh
 		self.msg = msg
 		self.time = time
+		self.hasUnknownParents = True
 		self.parents = [] if parents is None else parents
 		self.children = [] if children is None else children
 	
@@ -49,6 +48,7 @@ def parseLog(log):
 		for p_hash in parents:
 			if p_hash not in hash2commit:
 				logging.debug("Couldn't find parent %s for commit %s; ignoring parent", p_hash, hsh)
+				commit.hasUnknownParents = True
 				continue
 			p = hash2commit[p_hash]
 			
