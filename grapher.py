@@ -84,6 +84,8 @@ class Branch(object):
 			elif self.graph.line_type == 4:
 				# Cubic bezier paths, heavy curving
 				self.push("C", self.graph.xform(x1,y2), self.graph.xform(x2,y1), self.graph.xform(x2,y2))
+			else:
+				assert False
 			
 			self.oldx = x2
 	
@@ -111,9 +113,7 @@ class Branch(object):
 
 class SvgGraph(object):
 	
-	def __init__(self, outpath, style=None, linetype=3):
-		if linetype < 1 or linetype > 4:
-			raise ValueError("linetype must be between 1 and 4, got "+str(linetype))
+	def __init__(self, outpath, style=None):
 		
 		# Options
 		self.commit_r = "1mm"
@@ -121,8 +121,8 @@ class SvgGraph(object):
 		self.entry_height = 25
 		self.margin_x = 50
 		self.margin_y = 50
-		self.max_styles = 6
-		self.line_type = linetype
+		self.branch_styles = 6
+		self.line_type = 4
 		self.branch_style = DEFAULT_BRANCH_STYLE
 		
 		# Stuff we need
@@ -146,7 +146,7 @@ class SvgGraph(object):
 	
 	def nextBranchStyle(self):
 		n = self.curr_style
-		self.curr_style = (n+1) % self.max_styles
+		self.curr_style = (n+1) % self.branch_styles
 		return n
 	
 	def create(self, roots):
@@ -156,8 +156,8 @@ class SvgGraph(object):
 		
 		# Generate branch styles
 		start_hue = random.random()
-		for i in range(self.max_styles):
-			color = hsv_to_rgb((start_hue+float(i)/self.max_styles)%1, 1, 0.8)
+		for i in range(self.branch_styles):
+			color = hsv_to_rgb((start_hue+float(i)/self.branch_styles)%1, 1, 0.8)
 			color = int(color[0]*255), int(color[1]*255), int(color[2]*255)
 			self.svg.defs.add(self.svg.style(self.branch_style.format(i, color)))
 		
