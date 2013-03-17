@@ -1,16 +1,17 @@
 
 import svgwrite
-from collections import namedtuple
+import random
+from colorsys import hsv_to_rgb
 
 DEFAULT_STYLE = """
 .graph circle {
 	fill: white;
-	stroke: blue;
+	/*stroke: blue;*/
 	stroke-width: .3mm;
 }
 .graph line, .graph path {
 	fill: none;
-	stroke: blue;
+	/*stroke: blue;*/
 	stroke-width: .5mm;
 }
 .messages text {
@@ -21,8 +22,15 @@ DEFAULT_STYLE = """
 }
 """
 
+DEFAULT_BRANCH_STYLE = """
+.branch{0} {{
+	stroke: rgb({1[0]},{1[1]},{1[2]});
+}}
+"""
+
 class Branch(object):
-	def __init__(self, prev, next, x, prevx):
+	def __init__(self, style, prev, next, x, prevx):
+		self.style = style
 		self.prev = prev
 		self.next = next
 		self.x = x
@@ -57,6 +65,9 @@ def updateBranches(branches):
 def lerp(a,b,x):
 	return a*(1-x) + b*x
 
+def style2class(n):
+	return "branch{0}".format(n)
+
 class SvgGraph(object):
 	
 	def __init__(self, outpath, style=None, linetype=3):
@@ -69,9 +80,12 @@ class SvgGraph(object):
 		self.entry_height = 25
 		self.margin_x = 50
 		self.margin_y = 50
+		self.max_styles = 6
+		self.line_type = linetype
+		self.branch_style = DEFAULT_BRANCH_STYLE
 		
 		# Stuff we need
-		self.line_type = linetype
+		self.curr_style = 0
 		self.svg = svgwrite.Drawing(outpath, debug=True)
 		self.svg.defs.add(self.svg.style(style or DEFAULT_STYLE))
 		
@@ -83,13 +97,13 @@ class SvgGraph(object):
 	def xform(self,x,y):
 		return x*self.branch_spacing, y*self.entry_height
 	
-	def drawCommit(self, x,y):
-		self.g_graph_circles.add(self.svg.circle(self.xform(x,y),self.commit_r))
+	def drawCommit(self, x,y, style):
+		self.g_graph_circles.add(self.svg.circle(self.xform(x,y),self.commit_r, class_=style2class(style)))
 	
-	def drawLine(self, x1,y1, x2,y2):
+	def drawLine(self, x1,y1, x2,y2, style):
 		if self.line_type == 1 or x1 == x2:
 			# Straight lines
-			self.g_graph_lines.add(self.svg.line(self.xform(x1,y1), self.xform(x2,y2)))
+			self.g_graph_lines.add(self.svg.line(self.xform(x1,y1), self.xform(x2,y2), class_=style2class(style)))
 		elif self.line_type == 2:
 			# Quadratic bezier paths
 			if x1 > x2:
@@ -97,36 +111,49 @@ class SvgGraph(object):
 			else:
 				cpx, cpy = x2, y1
 			cmds = ("M", self.xform(x1,y1), "Q", self.xform(cpx,cpy), self.xform(x2,y2))
-			self.g_graph_lines.add(self.svg.path(cmds))
+			self.g_graph_lines.add(self.svg.path(cmds, class_=style2class(style)))
 		elif self.line_type == 3:
 			# Cubic bezier paths, moderate curving
 			cmds = ("M", self.xform(x1,y1), "C", self.xform(x1,lerp(y1,y2,0.7)), \
 				self.xform(x2,lerp(y1,y2,0.3)), self.xform(x2,y2))
-			self.g_graph_lines.add(self.svg.path(cmds))
+			self.g_graph_lines.add(self.svg.path(cmds, class_=style2class(style)))
 		elif self.line_type == 4:
 			# Cubic bezier paths, heavy curving
 			cmds = ("M", self.xform(x1,y1), "C", self.xform(x1,y2), \
 				self.xform(x2,y1), self.xform(x2,y2))
-			self.g_graph_lines.add(self.svg.path(cmds))
+			self.g_graph_lines.add(self.svg.path(cmds, class_=style2class(style)))
 	
 	def drawCommitText(self, x,y, commit):
 		self.g_text.add(self.svg.text(commit.msg,self.xform(x,y)))
+	
+	def nextBranchStyle(self):
+		n = self.curr_style
+		self.curr_style = (n+1) % self.max_styles
+		return n
 	
 	def create(self, roots):
 		maxx = 0
 		maxmsglen = 0
 		
+		# Generate branch styles
+		start_hue = random.random()
+		for i in range(self.max_styles):
+			color = hsv_to_rgb(start_hue+i/self.max_styles, 1, 0.8)
+			color = int(color[0]*255), int(color[1]*255), int(color[2]*255)
+			self.svg.defs.add(self.svg.style(self.branch_style.format(i, color)))
+		
+		# Set up branches
 		y = 0
 		commit_points = {}
 		branches = []
 		for x, root in enumerate(roots):
-			branches.append(Branch(root.hasUnknownParents,root,x,x))
+			branches.append(Branch(self.nextBranchStyle(),root.hasUnknownParents,root,x,x))
 		
 		while branches:
 			branch = min(branches, key=Branch.key_time)
 			
 			# Draw commit
-			self.drawCommit(branch.x, y)
+			self.drawCommit(branch.x, y, branch.style)
 			self.drawCommitText(0, y, branch.next)
 			
 			newbranches = branches[:]
@@ -138,10 +165,10 @@ class SvgGraph(object):
 				
 				if b.next == branch.next:
 					# Merging into this commit, use this commit's X
-					self.drawLine(b.prevx, y-1, branch.x, y)
+					self.drawLine(b.prevx, y-1, branch.x, y, b.style)
 				else:
 					# Use branch's X
-					self.drawLine(b.prevx, y-1, b.x, y)
+					self.drawLine(b.prevx, y-1, b.x, y, b.style)
 			
 			# Removed merged branches (and ourself)
 			insertpoint = None
@@ -156,8 +183,15 @@ class SvgGraph(object):
 			assert insertpoint is not None
 			
 			# Create new branches for children
+			first = True
 			for child in branch.next.children:
-				branches.insert(insertpoint, Branch(branch.next, child, branch.x, branch.prevx))
+				if first:
+					style = branch.style
+					first = False
+				else:
+					style = self.nextBranchStyle()
+				branches.insert(insertpoint, Branch(style, branch.next, child, branch.x, branch.prevx))
+				insertpoint = insertpoint + 1
 			
 			# Fan branches outwards
 			maxx = max(maxx, updateBranches(branches)-1)

@@ -16,6 +16,7 @@ if __name__ == "__main__":
 	parser.add_argument("-l", "--linestyle", default=4, type=int, help="Line style to use. 1 = linear, 2 = quadratic bezier, 3 and 4 = cubic beziers")
 	parser.add_argument("-f", "--format", default="%s", help="Message format. See git log's `format:` documentation")
 	parser.add_argument("--log", help="Pass this option to git log", action="append", default=[])
+	parser.add_argument("-c", "--branchcolors", default=6, help="Number of branch color styles to generate")
 	args = parser.parse_args()
 	
 	logging.basicConfig(level=args.level, format="%(message)s")
