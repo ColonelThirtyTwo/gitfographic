@@ -16,16 +16,16 @@ if __name__ == "__main__":
 	log_group = parser.add_mutually_exclusive_group()
 	log_group.add_argument("-v", "--verbose", help="Show debug messages", dest="level", action="store_const", const=logging.DEBUG, default=logging.INFO)
 	log_group.add_argument("-q", "--quiet", help="Do not output anything to console", dest="level", action="store_const", const=logging.CRITICAL)
-	
 	parser.add_argument("outfile", help="SVG output")
 	parser.add_argument("-r", "--repo", default=None, help="Input repository. Defaults to current directory.")
 	parser.add_argument("--log", help="Pass this option to git log", action="append", default=[])
 	
-	parser.add_argument("-l", "--linestyle", default=4, type=int, help="Line style to use. 1 = linear, 2 = quadratic bezier, 3 and 4 = cubic beziers")
-	parser.add_argument("-f", "--format", default="%s", help="Message format. See git log's `format:` documentation")
-	parser.add_argument("-c", "--branchcolors", type=int, default=6, help="Number of branch color styles to generate")
-	parser.add_argument("--branchspacing", type=int, default=30, help="Space between branches")
-	parser.add_argument("--entryheight", type=int, default=25, help="Space between each commit entry")
+	formats_group = parser.add_argument_group("Formatting Options", "Options that control the appearance of the output")
+	formats_group.add_argument("-l", "--linestyle", default=4, type=int, help="Line style to use. 1 = linear, 2 = quadratic bezier, 3 and 4 = cubic beziers")
+	formats_group.add_argument("-f", "--format", default="%s", help="Message format. See git log's `format:` documentation")
+	formats_group.add_argument("-c", "--branchcolors", type=int, default=6, help="Number of branch color styles to generate")
+	formats_group.add_argument("--branchspacing", type=int, default=30, help="Space between branches")
+	formats_group.add_argument("--entryheight", type=int, default=25, help="Space between each commit entry")
 	
 	args = parser.parse_args()
 	
