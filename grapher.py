@@ -185,6 +185,7 @@ class SvgGraph(object):
 				if b.next == branch.next:
 					b.updateX(branch.x) # Merge the branch
 					branches.pop(i)     # Remove the merged branch
+					b.drawstep(y)
 					
 					if b is not branch: # End branches with no possibility of continuing
 						b.end(y)        # The current branch may continue, see the next section of code
@@ -192,8 +193,8 @@ class SvgGraph(object):
 					if insertpoint is None:
 						insertpoint = i
 				else:
+					b.drawstep(y)
 					i += 1
-				b.drawstep(y)
 			assert insertpoint is not None
 			
 			# Create new branches for children, or re-add current branch
