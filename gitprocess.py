@@ -4,18 +4,17 @@ from os.path import join
 import logging
 
 class Commit(object):
-	__slots__ = ("hash", "author", "msg", "time", "parents", "children")
+	__slots__ = ("hash", "msg", "time", "parents", "children")
 	
-	def __init__(self, hsh, author, msg, time, parents=None, children=None):
+	def __init__(self, hsh, msg, time, parents=None, children=None):
 		self.hash = hsh
-		self.author = author
 		self.msg = msg
 		self.time = time
 		self.parents = [] if parents is None else parents
 		self.children = [] if children is None else children
 	
 	def __str__(self):
-		return "Commit({0},{1},{2},{3})".format(self.hash, self.author, self.time, self.msg)
+		return "Commit({0},{1},{2})".format(self.hash, self.time, self.msg)
 	__repr__ = __str__
 	
 	def __eq__(self, other):
@@ -23,13 +22,13 @@ class Commit(object):
 	def __hash__(self):
 		return hash(self.hash)
 
-def getLog(d=None, largs=tuple()):
+def getLog(d=None, largs=tuple(), format="%s"):
 	args = ["git"]
 	if d:
 		args.append("--git-dir="+join(d,".git"))
 	args.append("log")
 	args.extend(largs)
-	args.extend(("--format=format:%H:%an:%at:%P:%s", "--topo-order"))
+	args.extend(("--format=format:%H:%at:%P:"+format, "--topo-order"))
 	
 	return subprocess.check_output(args).decode("utf8", "replace")
 
@@ -40,11 +39,11 @@ def parseLog(log):
 	lines = log.splitlines()
 	lines.reverse()
 	for line in lines:
-		hsh, author, time, parents, msg = line.split(":", 4)
+		hsh, time, parents, msg = line.split(":", 3)
 		
 		time = int(time)
 		parents = parents.split()
-		commit = Commit(hsh, author, msg, time)
+		commit = Commit(hsh, msg, time)
 		hash2commit[hsh] = commit
 		
 		for p_hash in parents:
