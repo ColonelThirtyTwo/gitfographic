@@ -64,6 +64,8 @@ class Branch(object):
 		if not self.active:
 			return
 		if self.oldx != self.x:
+			self.push("V",self.graph.xform(-1,y-1)[1])
+			
 			x1,y1 = self.oldx, y-1
 			x2,y2 = self.x, y
 			
@@ -85,7 +87,8 @@ class Branch(object):
 				self.push("C", self.graph.xform(x1,y2), self.graph.xform(x2,y1), self.graph.xform(x2,y2))
 			self.oldx = x2
 		else:
-			self.push("V",self.graph.xform(-1,y)[1])
+			#self.push("V",self.graph.xform(-1,y)[1])
+			pass
 	
 	def updateNext(self, next, y):
 		self.activate(y)
@@ -102,7 +105,8 @@ class Branch(object):
 		return l
 	
 	def end(self, y):
-		pass
+		if self.active:
+			self.push("V",self.graph.xform(-1,y)[1])
 	
 	@staticmethod
 	def key_time(x):
@@ -188,7 +192,8 @@ class SvgGraph(object):
 				b = branches[i]
 				if b.next == branch.next:
 					branches.pop(i)
-					b.end(y)
+					if b is not branch:
+						b.end(y)
 					if insertpoint is None:
 						insertpoint = i
 				else:
@@ -198,6 +203,7 @@ class SvgGraph(object):
 			# Create new branches for children, or re-add ourself
 			if len(branch.next.children) > 1:
 				branches[insertpoint:insertpoint] = branch.split(branch.next.children,y)
+				branch.end(y)
 			elif branch.next.children:
 				branches.insert(insertpoint, branch)
 				branch.updateNext(branch.next.children[0], y)
@@ -206,12 +212,12 @@ class SvgGraph(object):
 			
 			# Fan branches outwards
 			x = 0
-			for branch in branches:
-				if branch.x <= x:
-					branch.updateX(x)
+			for b in branches:
+				if b.x <= x:
+					b.updateX(x)
 					x += 1
-				elif branch.x > x:
-					x = branch.x+1
+				elif b.x > x:
+					x = b.x+1
 			maxx = max(maxx, x)
 			maxmsglen = max(maxmsglen, len(branch.next.msg))
 			
