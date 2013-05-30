@@ -13,7 +13,7 @@ def getLog(d=None, largs=tuple(), format="%s"):
 		args.append("--git-dir="+join(d,".git"))
 	args.append("log")
 	args.extend(largs)
-	args.extend(("--format=format:%H:%at:%P:"+format, "--topo-order", "--reverse"))
+	args.extend(("--format=format:%H:%at:%P:"+format, "--date-order", "--reverse"))
 	
 	try:
 		return subprocess.check_output(args).decode("utf8", "replace")
