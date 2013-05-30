@@ -200,7 +200,7 @@ class SvgGraph(object):
 			# Create new branches for children, or re-add current branch
 			if len(branch.next.children) > 1:
 				# Split current branch into sub-branches for each of the children
-				branches[insertpoint:insertpoint] = branch.split(branch.next.children,y)
+				branches[insertpoint:insertpoint] = branch.split(reversed(branch.next.children),y)
 				branch.end(y)
 			elif branch.next.children:
 				# Only one child, just continue the existing branch

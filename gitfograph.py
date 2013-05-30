@@ -1,5 +1,5 @@
 
-import gitprocess
+import gitlog
 import grapher
 import argparse
 import logging
@@ -37,7 +37,7 @@ if __name__ == "__main__":
 	check(args.entryheight   > 0, "Invalid entry height")
 	
 	logging.info("Parsing commits from log")
-	roots = gitprocess.parseLog(gitprocess.getLog(args.repo, args.log, args.format))
+	roots = gitlog.getGraph(args.repo, args.log, args.format)
 	graph = grapher.SvgGraph(args.outfile)
 	
 	graph.line_style = args.linestyle
